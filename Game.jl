@@ -1,4 +1,6 @@
 using Random
+using DataFrames
+using CSV
 
 mutable struct Player
   decklist
@@ -10,7 +12,7 @@ mutable struct Player
 end
 
 function cast(spell::AbstractString, user::Player, opponent::Player)
-    println(string("CASTING ", spell))
+    #println(string("CASTING ", spell))
     if spell == "S_F"
         opponent.life -= 3
     elseif spell == "S_H"
@@ -50,14 +52,14 @@ end
 function taketurn(p::Player, opponent::Player)
     #draw a card
     drawcard(p)
-    println(string("Player hand: ", p.hand))
+    #println(string("Player hand: ", p.hand))
     #play one trigram
     t = popfirsttrigram(p)
     if t != nothing
-        println("Plays a trigram")
+        #println("Plays a trigram")
         push!(p.trigrams, t)
     end
-    println(string("Player trigrams: ", p.trigrams))
+    #println(string("Player trigrams: ", p.trigrams))
     #calculate mana
     mana = length(p.trigrams)
 
@@ -119,6 +121,9 @@ function wincon(p1::Player, p2::Player)
 end
 
 function playround(p1::Player, p2::Player)
+    #shuffle decks
+    shuffle!(p1.deck)
+    shuffle!(p2.deck)
     #Draw hands
     for _ = 1:7
         drawcard(p1)
@@ -127,13 +132,13 @@ function playround(p1::Player, p2::Player)
     gameover = false
     while gameover == false
         #p1 turn
-        println("Player 1 turn! (", p1.life, ")")
+        #println("Player 1 turn! (", p1.life, ")")
         taketurn(p1, p2)
         w = wincon(p1, p2)
         if w != 0
             return w
         end
-        println("Player 2 turn! (", p2.life, ")")
+        #println("Player 2 turn! (", p2.life, ")")
         taketurn(p2, p1)
         w = wincon(p1, p2)
         if w != 0
@@ -142,7 +147,34 @@ function playround(p1::Player, p2::Player)
     end
 end
 
+#Do trials!
+function trials(deck1, deck2, n)
+    println(string("Deck 1: ", sort(deck1)))
+    println(string("Deck 2: ", sort(deck2)))
+    wins1 = 0
+    wins2 = 0
+    for i = 1:n
+        #new round
+        a = newplayer(deck1)
+        b = newplayer(deck2)
+        result = playround(a, b)
+        if result == 1
+            wins1 += 1
+        elseif result == 2
+            wins2 += 1
+        end
+    end
+    println(string("Deck 1 wins: ", wins1))
+    println(string("Deck 2 wins: ", wins2))
+    return (wins1, wins2)
+end
 
-a = newplayer(randomdeck())
-b = newplayer(randomdeck())
-playround(a, b)
+#init
+d1 = randomdeck()
+d2 = randomdeck()
+
+#exports
+results = trials(d1, d2, 100)
+df = DataFrame(A = sort(d1), B = sort(d2), C = results[1], D = results[2])
+CSV.write("output.csv", df)
+println("Output file created.")
